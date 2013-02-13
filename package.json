@@ -1,0 +1,10 @@
+{
+  "name": "node-system",
+  "version": "0.0.2",
+  "description": "Execute shell command synchronously.",
+  "main": "index.coffee",
+  "dependencies": {
+    "ffi": "=1.1.2"
+  },
+  "license": "BSD"
+}
