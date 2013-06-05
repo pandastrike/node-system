@@ -1,46 +1,28 @@
 # Adapted from git://github.com/jeremyfa/node-exec-sync.git
+{rm,read} = require "fairmont"
+{tmpDir} = require "os"
+{join} = require "path"
 
 FFI = require "ffi"
 libc = new FFI.Library null, "system": ["int32", ["string"]]
-fs = require "fs"
-
-# Generate a pseudo-unique identifier
-uniqIdK = 0
-uniqId = ->
-    prefix = 'tmp'
-    prefix + (new Date()).getTime() + '' + (uniqIdK++) + ('' + Math.random()).split('.').join('')
-
-# Retrieve temporary writable directory
-tmpDir = ->
-    for name in ['TMPDIR', 'TMP', 'TEMP']
-        if process.env[name]?
-            dir = process.env[name]
-            if dir.charAt(dir.length-1) is '/' then return dir.substr(0, dir.length-1)
-            return dir
-    return '/tmp' # Fallback to the default
 
 getOutput = (path) ->
-    output = fs.readFileSync path
-    fs.unlinkSync path
-    output = "#{output}"
-    if output.charAt(output.length-1) is "\n" then output = output.substr(0,output.length-1)
-    return output
+  output = read( path ).trim()
+  rm( path )
+  output
 
 # execSync implementation
 module.exports = (cmd) ->
-    id = uniqId()
-    stdout = id+'.stdout'
-    stderr = id+'.stderr'
-    dir = tmpDir()
-    cmd = "#{cmd} > #{dir}/#{stdout} 2> #{dir}/#{stderr}"
-    status = libc.system cmd
-    result = getOutput "#{dir}/#{stdout}"
-    error = getOutput "#{dir}/#{stderr}"
-    if status is 0
-      return result
-    else
-      error = if error is ""
-        "Process exited with status #{status}" 
-      else 
-        error
-      throw new Error error
+  {pid} = process
+  dir = tmpDir()
+  stdout = join( dir, "#{pid}.stdout" )
+  stderr = join( dir, "#{pid}.stderr" )
+  cmd = "#{cmd} > #{stdout} 2> #{stderr}"
+  status = libc.system( cmd )
+  result = getOutput( stdout )
+  error = getOutput( stderr )
+  if status != 0
+    error ?= "Process exited with status #{status}"
+    throw new Error( error )
+  else
+    result
